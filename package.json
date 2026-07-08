@@ -1,1 +1,20 @@
-{"name":"score-discador-voip","private":true,"version":"1.0.0","workspaces":["apps/*","packages/*"],"scripts":{"build":"npm run build --workspaces --if-present","dev":"npm run dev --workspace @score/api & npm run dev --workspace @score/web","lint":"npm run lint --workspaces --if-present"},"devDependencies":{"typescript":"^5.5.4"}}
+{
+  "name": "score-discador-voip",
+  "private": true,
+  "version": "1.0.0",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "build": "npm run build --workspaces --if-present",
+    "dev": "npm run dev --workspace @score/api & npm run dev --workspace @score/web",
+    "lint": "npm run lint --workspaces --if-present",
+    "compose:build": "docker compose build",
+    "compose:up": "docker compose up -d",
+    "compose:down": "docker compose down"
+  },
+  "devDependencies": {
+    "typescript": "^5.5.4"
+  }
+}
