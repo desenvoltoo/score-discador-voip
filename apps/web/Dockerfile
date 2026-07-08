@@ -2,7 +2,9 @@ FROM node:20-alpine AS build
 WORKDIR /app
 COPY package*.json ./
 COPY apps/web/package.json apps/web/package.json
+COPY packages/shared/package.json packages/shared/package.json
 RUN npm install
+COPY packages/shared packages/shared
 COPY apps/web apps/web
 WORKDIR /app/apps/web
 RUN npm run build
