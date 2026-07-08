@@ -1,0 +1,34 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: score
+      POSTGRES_PASSWORD: score
+      POSTGRES_DB: score_discador
+    ports: ["5432:5432"]
+    volumes: ["postgres_data:/var/lib/postgresql/data"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U score -d score_discador"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+  api:
+    build: ./apps/api
+    env_file: .env.example
+    environment:
+      DATABASE_URL: postgresql://score:score@postgres:5432/score_discador?schema=public
+    ports: ["4000:4000"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes: ["api_uploads:/app/uploads"]
+    command: sh -c "npx prisma migrate deploy && npx prisma db seed && node dist/server.js"
+  web:
+    build: ./apps/web
+    environment:
+      VITE_API_URL: http://localhost:4000/api
+    ports: ["3000:3000"]
+    depends_on: [api]
+volumes:
+  postgres_data:
+  api_uploads:
