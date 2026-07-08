@@ -1,0 +1,2 @@
+import 'dotenv/config'; import express from 'express'; import cors from 'cors'; import routes from './routes/index.js';
+const app=express(); app.use(cors()); app.use(express.json()); app.get('/health',(_,res)=>res.json({ok:true,name:'SCORE Discador'})); app.use('/api',routes); app.use((err:any,_req:any,res:any,_next:any)=>res.status(400).json({message:err.message||'Erro inesperado'})); app.listen(Number(process.env.API_PORT||4000),()=>console.log('API on :4000'));
