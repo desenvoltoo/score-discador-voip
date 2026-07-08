@@ -102,11 +102,13 @@ git push -u origin main
 ```
 
 ## VPS/EasyPanel
-1. Crie um app Docker Compose no EasyPanel apontando para o repositório.
-2. Configure variáveis de ambiente com base no `.env.example`.
-3. Defina domínios para `web` e `api`, usando proxy reverso/SSL do EasyPanel.
-4. Garanta volume persistente para `postgres_data` e `api_uploads`.
-5. Execute deploy; o serviço `api` roda migrations e seed antes de iniciar.
+1. Crie um app **Docker Compose** no EasyPanel apontando para o repositório.
+2. No EasyPanel, selecione o arquivo `docker-compose.yml` da raiz do projeto como arquivo Compose.
+3. Mantenha o contexto de build da raiz (`context: .`) para que os Dockerfiles consigam copiar `apps/api`, `apps/web`, `packages/shared` e o `package.json` raiz usados pelos workspaces npm.
+4. Configure variáveis de ambiente com base no `.env.example` e substitua segredos como `JWT_SECRET` antes de publicar.
+5. Defina domínios para `web` e `api`, usando proxy reverso/SSL do EasyPanel.
+6. Garanta volume persistente para `postgres_data` e `api_uploads`.
+7. Execute deploy; o serviço `api` roda migrations e seed antes de iniciar.
 
 ## Próximos passos recomendados
 - Implementar AMI/ARI real com biblioteca aprovada pela infraestrutura VoIP.
