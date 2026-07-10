@@ -14,9 +14,9 @@ type SipConfig = {
 const defaultConfig: SipConfig = {
   wssUrl: `wss://${window.location.hostname}:8089/ws`,
   sipDomain: window.location.hostname,
-  extension: '1001',
-  password: 'SenhaForte1001',
-  displayName: 'Supervisão',
+  extension: '9001',
+  password: 'SenhaWebRTC9001',
+  displayName: 'Supervisão WebRTC',
 };
 
 function loadConfig(): SipConfig {
@@ -41,6 +41,12 @@ export default function SipSoftphone() {
   function save() {
     localStorage.setItem('referencia:sip', JSON.stringify(cfg));
     setMessage('Configuração SIP salva neste navegador.');
+  }
+
+  function resetDefaults() {
+    localStorage.removeItem('referencia:sip');
+    setCfg(defaultConfig);
+    setMessage('Configuração resetada para o ramal WebRTC 9001. Clique em Registrar novamente.');
   }
 
   function attachAudio(s: any) {
@@ -230,7 +236,7 @@ export default function SipSoftphone() {
           <label>Senha<input type="password" value={cfg.password} onChange={(e) => setCfg({ ...cfg, password: e.target.value })} /></label>
           <label className="wide">Nome de exibição<input value={cfg.displayName} onChange={(e) => setCfg({ ...cfg, displayName: e.target.value })} /></label>
         </div>
-        <div className="phoneActions mt"><button onClick={save}><Save size={18} />Salvar configuração</button><button onClick={disconnect} className="ghostBtn">Desconectar</button></div>
+        <div className="phoneActions mt"><button onClick={save}><Save size={18} />Salvar configuração</button><button onClick={resetDefaults} className="ghostBtn">Usar ramal 9001</button><button onClick={disconnect} className="ghostBtn">Desconectar</button></div>
         <div className="miniGuide mt">
           <b>Checklist para ativar no navegador</b>
           <span>1. Asterisk com transporte WSS ativo na porta 8089.</span>
