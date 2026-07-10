@@ -7,8 +7,8 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-score_password}
     volumes:
       - postgres_data:/var/lib/postgresql/data
-    ports:
-      - "${POSTGRES_PORT:-5432}:5432"
+    expose:
+      - "5432"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
       interval: 10s
@@ -37,8 +37,8 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-    ports:
-      - "${API_PORT:-4000}:${API_PORT:-4000}"
+    expose:
+      - "4000"
     volumes:
       - api_uploads:/app/uploads
     command: sh -c "npx prisma migrate deploy --schema prisma/schema.prisma && node dist/server.js"
@@ -60,8 +60,8 @@ services:
     depends_on:
       api:
         condition: service_healthy
-    ports:
-      - "${WEB_PORT:-3000}:3000"
+    expose:
+      - "3000"
 
 volumes:
   postgres_data:
