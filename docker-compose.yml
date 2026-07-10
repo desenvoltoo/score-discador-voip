@@ -41,7 +41,7 @@ services:
       - "${API_PORT:-4000}:${API_PORT:-4000}"
     volumes:
       - api_uploads:/app/uploads
-    command: sh -c "npx prisma migrate deploy --schema prisma/schema.prisma && npx prisma db seed --schema prisma/schema.prisma && node dist/server.js"
+    command: sh -c "npx prisma migrate deploy --schema prisma/schema.prisma && node dist/server.js"
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://localhost:$${PORT}/health >/dev/null 2>&1 || exit 1"]
       interval: 30s
