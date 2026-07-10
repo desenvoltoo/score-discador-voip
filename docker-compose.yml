@@ -23,7 +23,7 @@ services:
       NODE_ENV: production
       PORT: ${API_PORT:-4000}
       API_PORT: ${API_PORT:-4000}
-      DATABASE_URL: ${DATABASE_URL:-postgresql://score:score_password@postgres:5432/score_discador?schema=public}
+      DATABASE_URL: postgresql://${POSTGRES_USER:-score}:${POSTGRES_PASSWORD:-score_password}@postgres:5432/${POSTGRES_DB:-score_discador}?schema=public
       JWT_SECRET: ${JWT_SECRET:-change_me}
       JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-7d}
       VOIP_PROVIDER: ${VOIP_PROVIDER:-mock}
