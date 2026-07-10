@@ -1,4 +1,5 @@
-const API = import.meta.env.VITE_API_URL || '/api';
+const rawApiUrl = import.meta.env.VITE_API_URL || '/api';
+const API = rawApiUrl.includes('localhost') || rawApiUrl.includes('127.0.0.1') ? '/api' : rawApiUrl;
 
 export const token = () => localStorage.getItem('token');
 
@@ -19,14 +20,20 @@ async function readBody(response: Response) {
 }
 
 export async function api(path: string, init: RequestInit = {}) {
-  const r = await fetch(API + path, {
-    ...init,
-    headers: {
-      'Content-Type': 'application/json',
-      ...(token() ? { Authorization: `Bearer ${token()}` } : {}),
-      ...(init.headers || {}),
-    },
-  });
+  let r: Response;
+
+  try {
+    r = await fetch(API + path, {
+      ...init,
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token() ? { Authorization: `Bearer ${token()}` } : {}),
+        ...(init.headers || {}),
+      },
+    });
+  } catch {
+    throw new Error(`Não foi possível conectar na API em ${API + path}. Confira se o front está usando /api e se o backend está publicado no EasyPanel.`);
+  }
 
   const body = await readBody(r);
 
