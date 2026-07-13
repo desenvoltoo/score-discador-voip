@@ -1,3 +1,5 @@
+import '../ux-improvements.css';
+
 export default function StatusBadge({ status }: { status?: string | null }) {
   const value = status || 'SEM_STATUS';
   const key = value.toUpperCase();
