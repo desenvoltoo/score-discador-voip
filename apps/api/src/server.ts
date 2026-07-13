@@ -2,7 +2,7 @@ import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
 import routes from './routes/index.js';
-import operationsRoutes from './routes/operations.js';
+import operationsRoutes from './routes/operations-safe.js';
 import callControlRoutes from './routes/call-control.js';
 
 const app = express();
@@ -10,7 +10,6 @@ app.use(cors());
 app.use(express.json({ limit: '2mb' }));
 app.get('/health', (_, res) => res.json({ ok: true, name: 'SCORE Discador' }));
 
-// Regras críticas e rotas específicas devem ser registradas antes das rotas legadas.
 app.use('/api', callControlRoutes);
 app.use('/api', operationsRoutes);
 app.use('/api', routes);
