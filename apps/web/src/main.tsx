@@ -1,10 +1,9 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import {
-  Activity, AlertTriangle, BarChart3, Brain, CalendarClock, CheckCircle2, ClipboardList, Clock,
-  Copy, Eye, FileDown, Headphones, LayoutDashboard, LogOut, MessageSquare, Phone, PhoneCall,
-  PhoneForwarded, Plus, RefreshCw, Search, Settings, ShieldBan, Sparkles, Target, TrendingUp,
-  Upload, Users, Wand2,
+  Activity, AlertTriangle, BarChart3, CheckCircle2, ClipboardList, Copy, Eye, FileDown,
+  Headphones, LayoutDashboard, LogOut, MessageSquare, Phone, PhoneCall, Plus, RefreshCw,
+  Save, Search, Settings, ShieldBan, Sparkles, Target, TrendingUp, Upload, Users, Wand2,
 } from 'lucide-react';
 import { api } from './services/api';
 import SipSoftphone from './SipSoftphone';
@@ -129,13 +128,43 @@ function Operator({ setPage }: { setPage: (p: string) => void }) {
   const [call, setCall] = useState<any>();
   const [notes, setNotes] = useState('');
   const [msg, setMsg] = useState<Msg>(null);
-  async function load() { const r = await api('/leads?status=EM_FILA'); setQueue(r); setLead((current: any) => current || r[0]); }
+
+  async function load(keepCurrent = false) {
+    const r = await api('/leads?status=EM_FILA');
+    setQueue(r);
+    setLead((current: any) => keepCurrent && current ? current : r[0]);
+  }
   useEffect(() => { load().catch(() => {}); }, []);
-  async function start() { if (!lead) return; try { setCall(await api('/calls/start', { method: 'POST', body: JSON.stringify({ leadId: lead.id }) })); setMsg({ type: 'ok', text: 'Atendimento aberto. Use o softphone ao lado para ligar e depois salve o desfecho.' }); } catch (e: any) { setMsg({ type: 'err', text: e.message }); } }
-  async function finish(s: string) { if (!call) { setMsg({ type: 'info', text: 'Abra o atendimento antes de salvar o desfecho.' }); return; } try { await api(`/calls/${call.id}/finish`, { method: 'POST', body: JSON.stringify({ finalDisposition: s, notes, doNotCall: s === 'NAO_LIGAR_NOVAMENTE' }) }); setMsg({ type: 'ok', text: `Desfecho salvo: ${s.replaceAll('_', ' ')}` }); setCall(undefined); setNotes(''); await load(); } catch (e: any) { setMsg({ type: 'err', text: e.message }); } }
+  useEffect(() => { setNotes(lead?.notes || ''); setCall(undefined); }, [lead?.id]);
+
+  async function start() {
+    if (!lead) return;
+    try { setCall(await api('/calls/start', { method: 'POST', body: JSON.stringify({ leadId: lead.id }) })); setMsg({ type: 'ok', text: 'Atendimento aberto. Ligue pelo softphone, registre a observação e salve o desfecho.' }); }
+    catch (e: any) { setMsg({ type: 'err', text: e.message }); }
+  }
+
+  async function saveNotes() {
+    if (!lead) return;
+    try {
+      const updated = await api(`/leads/${lead.id}`, { method: 'PATCH', body: JSON.stringify({ notes }) });
+      setLead(updated);
+      setQueue((items) => items.map((x) => x.id === updated.id ? { ...x, notes: updated.notes } : x));
+      setMsg({ type: 'ok', text: 'Observação salva no lead.' });
+    } catch (e: any) { setMsg({ type: 'err', text: e.message }); }
+  }
+
+  async function finish(s: string) {
+    if (!call) { setMsg({ type: 'info', text: 'Abra o atendimento antes de salvar o desfecho.' }); return; }
+    try {
+      await api(`/calls/${call.id}/finish`, { method: 'POST', body: JSON.stringify({ finalDisposition: s, notes, doNotCall: s === 'NAO_LIGAR_NOVAMENTE' }) });
+      setMsg({ type: 'ok', text: `Desfecho salvo: ${s.replaceAll('_', ' ')}. Observação salva junto.` });
+      setCall(undefined); setNotes(''); await load(false);
+    } catch (e: any) { setMsg({ type: 'err', text: e.message }); }
+  }
+
   const score = Math.min(96, 58 + Number(lead?.attemptsCount || 0) * 6 + (lead?.course ? 12 : 0));
-  const aiTips = ['Comece confirmando curso e unidade para reduzir objeções.', 'Se houver interesse, ofereça agendamento de retorno ainda na chamada.', 'Finalize sempre com próximo passo claro e registre o motivo do desfecho.'];
-  return <section className="operatorCockpit"><div className="cockpitMain"><div className="operatorHero"><div><small>Cockpit do operador</small><h2>Fila inteligente + telefone + IA de atendimento</h2><p>Uma tela única para consultar o lead, ligar, receber apoio de script e registrar o resultado sem perder contexto.</p></div><button onClick={() => setPage('Softphone SIP')}><PhoneForwarded size={18} />Abrir telefone completo</button></div><div className="liveMetrics"><div><small>Fila</small><b>{queue.length}</b><span>leads aguardando</span></div><div><small>Prioridade</small><b>{lead ? `${score}%` : '—'}</b><span>score estimado</span></div><div><small>SLA</small><b>02:15</b><span>tempo ideal</span></div><div><small>Modo</small><b>Preview</b><span>discagem assistida</span></div></div><Notice msg={msg} />{lead ? <div className="leadWorkspace"><div className="leadProfile"><div className="leadAvatar">{String(lead.name || 'L').slice(0, 2).toUpperCase()}</div><div><small>Lead selecionado</small><h2>{lead.name || 'Sem nome'}</h2><p>{lead.phoneNormalized || 'Telefone não informado'}</p><span>{lead.course || 'Curso não informado'} • {lead.origin || 'Origem não informada'}</span></div></div><div className="leadFacts"><span><Target size={15} />Status: {fmt(lead.status)}</span><span><Clock size={15} />Tentativas: {fmt(lead.attemptsCount)}</span><span><CalendarClock size={15} />Melhor ação: ligar agora</span></div><div className="callActions premiumActions"><button className="callBtn" onClick={start}><PhoneCall size={20} />Abrir atendimento</button><button className="ghostBtn" onClick={() => navigator.clipboard.writeText(lead.phoneNormalized || '')}><Copy size={17} />Copiar telefone</button><textarea placeholder="Observação do atendimento" value={notes} onChange={(e) => setNotes(e.target.value)} /></div><div className="dispositions premiumDispositions">{dispositions.map((s) => <button key={s} disabled={!call} onClick={() => finish(s)}>{s.replaceAll('_', ' ')}</button>)}</div></div> : <Empty text="Nenhum lead em fila." />}<div className="aiPanel"><h3><Brain size={20} />ReferencIA Assist</h3><div className="aiCards"><div><small>Resumo vivo</small><p>Aguardando ligação. Quando conectarmos transcrição, este quadro trará resumo em tempo real.</p></div><div><small>Objeção provável</small><p>Preço, tempo de deslocamento ou dúvida sobre modalidade.</p></div><div><small>Próxima melhor ação</small><p>Confirmar interesse, curso e melhor horário para retorno.</p></div></div><div className="scriptBox"><b>Script sugerido</b>{aiTips.map((tip) => <span key={tip}><Sparkles size={14} />{tip}</span>)}</div></div></div><aside className="cockpitSide"><div className="operatorSoftphone"><SipSoftphone /></div><div className="panel queuePanel"><h3><ClipboardList size={19} />Próximos da fila</h3>{queue.slice(0, 9).map((l, i) => <button className={`queueItem ${lead?.id === l.id ? 'active' : ''}`} key={l.id || i} onClick={() => setLead(l)}>{i + 1}. {l.name || 'Sem nome'}<span>{l.phoneNormalized}</span></button>)}{!queue.length && <Empty text="Nenhum lead aguardando." />}</div><div className="panel accent"><h3><MessageSquare size={19} />WhatsApp rápido</h3><p className="muted">Próximo passo: gerar mensagem automática pós-ligação com resumo, objeção e CTA de matrícula.</p></div></aside></section>;
+  const aiTips = ['Confirme curso e unidade.', 'Se houver interesse, ofereça retorno ou próximo passo.', 'Ao finalizar, salve observação e desfecho.'];
+  return <section className="operatorCockpit"><div className="cockpitMain"><div className="operatorHero"><div><small>Cockpit do operador</small><h2>Fila inteligente + telefone + IA de atendimento</h2><p>Agora a observação pode ser salva separadamente ou junto com o desfecho.</p></div><button onClick={() => setPage('Softphone SIP')}><PhoneCall size={18} />Abrir telefone completo</button></div><div className="liveMetrics"><div><small>Fila</small><b>{queue.length}</b><span>leads aguardando</span></div><div><small>Prioridade</small><b>{lead ? `${score}%` : '—'}</b><span>score estimado</span></div><div><small>SLA</small><b>02:15</b><span>tempo ideal</span></div><div><small>Modo</small><b>Preview</b><span>discagem assistida</span></div></div><Notice msg={msg} />{lead ? <div className="leadWorkspace"><div className="leadProfile"><div className="leadAvatar">{String(lead.name || 'L').slice(0, 2).toUpperCase()}</div><div><small>Lead selecionado</small><h2>{lead.name || 'Sem nome'}</h2><p>{lead.phoneNormalized || 'Telefone não informado'}</p><span>{lead.course || 'Curso não informado'} • {lead.origin || 'Origem não informada'}</span></div></div><div className="leadFacts"><span><Target size={15} />Status: {fmt(lead.status)}</span><span>Última obs: {lead.notes ? 'salva' : 'sem observação'}</span></div><div className="callActions premiumActions"><button className="callBtn" onClick={start}><PhoneCall size={20} />Abrir atendimento</button><button className="ghostBtn" onClick={() => navigator.clipboard.writeText(lead.phoneNormalized || '')}><Copy size={17} />Copiar telefone</button><textarea placeholder="Observação do atendimento" value={notes} onChange={(e) => setNotes(e.target.value)} /></div><div className="dispositions premiumDispositions"><button className="ghostBtn" onClick={saveNotes}><Save size={16} />Salvar observação</button>{dispositions.map((s) => <button key={s} disabled={!call} onClick={() => finish(s)}>{s.replaceAll('_', ' ')}</button>)}</div></div> : <Empty text="Nenhum lead em fila." />}<div className="aiPanel"><h3><MessageSquare size={20} />ReferencIA Assist</h3><div className="aiCards"><div><small>Resumo vivo</small><p>Aguardando ligação.</p></div><div><small>Objeção provável</small><p>Preço, tempo de deslocamento ou dúvida sobre modalidade.</p></div><div><small>Próxima melhor ação</small><p>Registrar observação e definir desfecho.</p></div></div><div className="scriptBox"><b>Script sugerido</b>{aiTips.map((tip) => <span key={tip}><Sparkles size={14} />{tip}</span>)}</div></div></div><aside className="cockpitSide"><div className="operatorSoftphone"><SipSoftphone /></div><div className="panel queuePanel"><h3><ClipboardList size={19} />Próximos da fila</h3>{queue.slice(0, 9).map((l, i) => <button className={`queueItem ${lead?.id === l.id ? 'active' : ''}`} key={l.id || i} onClick={() => setLead(l)}>{i + 1}. {l.name || 'Sem nome'}<span>{l.phoneNormalized}</span></button>)}{!queue.length && <Empty text="Nenhum lead aguardando." />}</div></aside></section>;
 }
 
 function Reports() {
