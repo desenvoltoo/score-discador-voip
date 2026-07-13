@@ -3,6 +3,19 @@ const API = rawApiUrl.includes('localhost') || rawApiUrl.includes('127.0.0.1') ?
 
 export const token = () => localStorage.getItem('token');
 
+function isAuthError(message: string, status: number) {
+  const normalized = message.toLowerCase();
+  return status === 401 || normalized.includes('token inválido') || normalized.includes('token invalido') || normalized.includes('token ausente') || normalized.includes('jwt');
+}
+
+function resetSession(message = 'Sua sessão expirou. Faça login novamente.') {
+  localStorage.removeItem('token');
+  localStorage.setItem('auth:expired', message);
+  if (!location.pathname.includes('login')) {
+    setTimeout(() => location.reload(), 300);
+  }
+}
+
 async function readBody(response: Response) {
   const contentType = response.headers.get('content-type') || '';
   const text = await response.text();
@@ -43,6 +56,12 @@ export async function api(path: string, init: RequestInit = {}) {
       : typeof body === 'string' && body
         ? `A rota ${API + path} não respondeu JSON da API. Resposta: ${body.slice(0, 180)}`
         : 'Erro na API';
+
+    if (isAuthError(message, r.status)) {
+      resetSession(message);
+      throw new Error('Sessão expirada. Faça login novamente.');
+    }
+
     throw new Error(message);
   }
 
