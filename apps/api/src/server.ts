@@ -4,7 +4,7 @@ import cors from 'cors';
 import routes from './routes/index.js';
 import operationsRoutes from './routes/operations-safe.js';
 import callControlRoutes from './routes/call-control.js';
-import roleGuard from './middlewares/role-guard.js';
+import roleGuard from './middlewares/role-guard-v2.js';
 
 const app = express();
 app.use(cors());
