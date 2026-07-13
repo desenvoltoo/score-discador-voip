@@ -1,9 +1,10 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { CalendarClock, CheckCircle2, ClipboardList, Copy, MessageSquare, PhoneCall, RefreshCw, Save, ShieldBan, SkipForward, Sparkles, Target } from 'lucide-react';
+import { CalendarClock, CheckCircle2, ClipboardList, Copy, MessageSquare, PhoneCall, RefreshCw, Save, ShieldBan, SkipForward, Sparkles, Target, Zap } from 'lucide-react';
 import { api } from '../services/api';
 import SipSoftphone from '../SipSoftphone';
 import Notice, { type NoticeMessage } from '../components/Notice';
 import StatusBadge from '../components/StatusBadge';
+import '../crm-polish.css';
 
 const dispositions = ['ATENDIDO', 'NAO_ATENDEU', 'INTERESSADO', 'SEM_INTERESSE', 'MATRICULADO', 'RETORNO', 'OCUPADO', 'CAIXA_POSTAL', 'NUMERO_INVALIDO', 'NAO_LIGAR_NOVAMENTE'];
 
@@ -18,6 +19,7 @@ function whatsappFor(lead: any, disposition?: string) {
   const curso = lead?.course ? ` no curso de ${lead.course}` : '';
   if (disposition === 'INTERESSADO') return `Olá, ${nome}. Conforme conversamos, vou te ajudar com o próximo passo da sua inscrição${curso}.`;
   if (disposition === 'NAO_ATENDEU') return `Olá, ${nome}. Tentei contato sobre sua inscrição${curso}. Qual o melhor horário para falarmos?`;
+  if (disposition === 'RETORNO') return `Olá, ${nome}. Conforme combinado, retorno no horário combinado para falarmos da sua inscrição${curso}.`;
   return `Olá, ${nome}. Estou entrando em contato sobre sua inscrição${curso}.`;
 }
 
@@ -45,6 +47,7 @@ export default function OperatorDeskPro({ openPhone }: { openPhone: () => void }
   useEffect(() => { setNotes(lead?.notes || ''); setCall(null); }, [lead?.id]);
 
   const score = useMemo(() => Math.min(97, 54 + Number(lead?.attemptsCount || 0) * 5 + (lead?.course ? 14 : 0) + (lead?.origin ? 8 : 0)), [lead]);
+  const noteQuality = notes.trim().length >= 30 ? 'Completa' : notes.trim().length >= 12 ? 'Ok' : 'Fraca';
 
   async function start() {
     if (!lead) return;
@@ -98,28 +101,31 @@ export default function OperatorDeskPro({ openPhone }: { openPhone: () => void }
     setMsg({ type: 'ok', text: 'Mensagem de WhatsApp copiada.' });
   }
 
-  return <section className="operatorCockpit operatorPro">
+  return <section className="operatorCockpit operatorPro operatorPolish">
     <div className="cockpitMain">
-      <div className="operatorHero">
-        <div><small>Mesa premium</small><h2>Operar lead, telefone e registro em um só fluxo</h2><p>Ações principais ficam visíveis: abrir atendimento, salvar observação, WhatsApp, desfecho e próximo lead.</p></div>
-        <button onClick={openPhone}><PhoneCall size={18} />Telefone completo</button>
+      <div className="operatorHero operatorHeroPolish">
+        <div><small>Mesa do operador</small><h2>Cockpit de atendimento com foco no próximo passo</h2><p>Lead, telefone, roteiro, observação e desfecho em uma tela mais limpa para reduzir clique e erro operacional.</p></div>
+        <div className="heroStack"><button onClick={openPhone}><PhoneCall size={18} />Telefone completo</button><button className="ghostBtn" onClick={load}><RefreshCw size={17} />Atualizar fila</button></div>
       </div>
 
-      <div className="liveMetrics"><div><small>Fila</small><b>{queue.length}</b><span>leads em espera</span></div><div><small>Prioridade</small><b>{lead ? `${score}%` : '—'}</b><span>score estimado</span></div><div><small>Atendimento</small><b>{call ? 'Aberto' : 'Livre'}</b><span>estado atual</span></div><div><small>Modo</small><b>Preview</b><span>controle manual</span></div></div>
+      <div className="liveMetrics operatorMetrics"><div><small>Fila</small><b>{queue.length}</b><span>{loading ? 'atualizando' : 'leads em espera'}</span></div><div><small>Prioridade</small><b>{lead ? `${score}%` : '—'}</b><span>score estimado</span></div><div><small>Atendimento</small><b>{call ? 'Aberto' : 'Livre'}</b><span>{call ? 'salve desfecho' : 'pronto para iniciar'}</span></div><div><small>Obs.</small><b>{lead ? noteQuality : '—'}</b><span>qualidade do registro</span></div></div>
       <Notice msg={msg} />
 
-      {lead ? <div className="leadWorkspace proWorkspace">
-        <div className="leadProfile"><div className="leadAvatar">{String(lead.name || 'L').slice(0, 2).toUpperCase()}</div><div><small>Lead atual</small><h2>{lead.name || 'Sem nome'}</h2><p>{lead.phoneNormalized || 'Telefone não informado'}</p><span>{lead.course || 'Curso não informado'} • {lead.origin || 'Origem não informada'}</span></div></div>
-        <div className="leadFacts"><StatusBadge status={lead.status} /><span><Target size={15} />Tentativas: {fmt(lead.attemptsCount)}</span><span><CalendarClock size={15} />Ação sugerida: ligar agora</span></div>
-        <div className="operatorActionBar"><button className="callBtn" onClick={start}><PhoneCall size={18} />Abrir atendimento</button><button className="ghostBtn" onClick={copyPhone}><Copy size={16} />Copiar telefone</button><button className="ghostBtn" onClick={copyWhatsApp}><MessageSquare size={16} />Copiar WhatsApp</button><button className="ghostBtn" onClick={nextLead}><SkipForward size={16} />Pular lead</button></div>
-        <label className="widePanel">Observação do atendimento<textarea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Registre objeções, interesse, horário de retorno e próximos passos." /></label>
+      {lead ? <div className="leadWorkspace proWorkspace operatorLeadCard">
+        <div className="leadProfile leadProfilePolish"><div className="leadAvatar">{String(lead.name || 'L').slice(0, 2).toUpperCase()}</div><div><small>Lead atual</small><h2>{lead.name || 'Sem nome'}</h2><p>{lead.phoneNormalized || 'Telefone não informado'}</p><span>{lead.course || 'Curso não informado'} • {lead.origin || 'Origem não informada'}</span></div></div>
+        <div className="leadFacts"><StatusBadge status={lead.status} /><span><Target size={15} />Tentativas: {fmt(lead.attemptsCount)}</span><span><Zap size={15} />Ação sugerida: ligar agora</span><span><CalendarClock size={15} />Retorno: {lead.callbackAt ? fmt(lead.callbackAt) : 'não agendado'}</span></div>
+        <div className="operatorActionBar stickyActions"><button className="callBtn" onClick={start}><PhoneCall size={18} />Abrir atendimento</button><button className="ghostBtn" onClick={copyPhone}><Copy size={16} />Copiar telefone</button><button className="ghostBtn" onClick={copyWhatsApp}><MessageSquare size={16} />Copiar WhatsApp</button><button className="ghostBtn" onClick={nextLead}><SkipForward size={16} />Pular lead</button></div>
+        <div className="operatorTwoCols">
+          <label className="widePanel">Observação do atendimento<textarea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Registre objeções, interesse, horário de retorno e próximos passos." /></label>
+          <div className="scriptBox operatorScript"><b><Sparkles size={15} />Script rápido</b><span>Confirme curso, modalidade e melhor horário.</span><span>Registre objeção principal antes do desfecho.</span><span>Se o aluno pedir retorno, informe data e horário.</span></div>
+        </div>
         <div className="operatorActionBar"><button onClick={saveNotes}><Save size={16} />Salvar observação</button><button className="dangerBtn" onClick={() => finish('NAO_LIGAR_NOVAMENTE')} disabled={!call}><ShieldBan size={16} />Não ligar</button></div>
-        <div className="dispositions premiumDispositions">{dispositions.filter((s) => s !== 'NAO_LIGAR_NOVAMENTE').map((s) => <button key={s} disabled={!call} onClick={() => finish(s)}>{s.replaceAll('_', ' ')}</button>)}</div>
+        <div className="dispositionBoard">{dispositions.filter((s) => s !== 'NAO_LIGAR_NOVAMENTE').map((s) => <button key={s} disabled={!call} onClick={() => finish(s)}>{s.replaceAll('_', ' ')}</button>)}</div>
       </div> : <div className="leadWorkspace"><div className="empty"><ClipboardList size={36} /><strong>Fila vazia</strong><span>Importe leads ou atualize a fila.</span><button onClick={load}><RefreshCw size={16} />Atualizar fila</button></div></div>}
 
-      <div className="aiPanel"><h3><Sparkles size={20} />ReferencIA Assist</h3><div className="aiCards"><div><small>Script curto</small><p>Confirme nome, curso, modalidade e melhor horário. Evite perder contexto: salve a observação antes de finalizar.</p></div><div><small>Objeções comuns</small><p>Preço, horário, deslocamento e dúvida sobre modalidade.</p></div><div><small>Próxima ação</small><p>{lead ? 'Abrir atendimento, ligar, registrar observação e escolher desfecho.' : 'Atualizar fila ou importar nova base.'}</p></div></div></div>
+      <div className="aiPanel assistPolish"><h3><Sparkles size={20} />ReferencIA Assist</h3><div className="aiCards"><div><small>Script curto</small><p>Confirme nome, curso, modalidade e melhor horário. Evite perder contexto: salve a observação antes de finalizar.</p></div><div><small>Objeções comuns</small><p>Preço, horário, deslocamento e dúvida sobre modalidade.</p></div><div><small>Próxima ação</small><p>{lead ? 'Abrir atendimento, ligar, registrar observação e escolher desfecho.' : 'Atualizar fila ou importar nova base.'}</p></div></div></div>
     </div>
 
-    <aside className="cockpitSide"><div className="operatorSoftphone"><SipSoftphone /></div><div className="panel queuePanel"><h3><ClipboardList size={19} />Próximos da fila</h3>{queue.slice(0, 12).map((item, i) => <button className={`queueItem ${lead?.id === item.id ? 'active' : ''}`} key={item.id || i} onClick={() => setLead(item)}><b>{i + 1}. {item.name || 'Sem nome'}</b><span>{item.phoneNormalized}</span></button>)}{!queue.length && <p className="muted">Nenhum lead em fila.</p>}</div></aside>
+    <aside className="cockpitSide"><div className="operatorSoftphone softphonePolish"><SipSoftphone /></div><div className="panel queuePanel queuePolish"><h3><ClipboardList size={19} />Próximos da fila</h3>{queue.slice(0, 12).map((item, i) => <button className={`queueItem ${lead?.id === item.id ? 'active' : ''}`} key={item.id || i} onClick={() => setLead(item)}><b>{i + 1}. {item.name || 'Sem nome'}</b><span>{item.phoneNormalized}</span></button>)}{!queue.length && <p className="muted">Nenhum lead em fila.</p>}</div></aside>
   </section>;
 }
