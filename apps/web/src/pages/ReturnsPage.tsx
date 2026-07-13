@@ -3,6 +3,7 @@ import { CalendarClock, CheckCircle2, Clock, Copy, MessageSquare, PhoneCall, Ref
 import { api } from '../services/api';
 import Notice, { type NoticeMessage } from '../components/Notice';
 import StatusBadge from '../components/StatusBadge';
+import '../ops-pages.css';
 
 function fmtDate(v?: string | null) {
   if (!v) return 'Sem data';
