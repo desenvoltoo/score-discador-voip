@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Download, FileSpreadsheet, RefreshCw, Search } from 'lucide-react';
 import { api } from '../services/api';
 import Notice, { type NoticeMessage } from '../components/Notice';
+import '../ops-pages.css';
 
 function fmt(v: any) {
   if (v === null || v === undefined || v === '') return '—';
