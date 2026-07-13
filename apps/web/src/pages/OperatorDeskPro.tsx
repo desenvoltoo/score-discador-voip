@@ -5,6 +5,7 @@ import SipSoftphone from '../SipSoftphone';
 import Notice, { type NoticeMessage } from '../components/Notice';
 import StatusBadge from '../components/StatusBadge';
 import '../crm-polish.css';
+import '../operator-layout-fixes.css';
 
 const dispositions = ['ATENDIDO', 'NAO_ATENDEU', 'INTERESSADO', 'SEM_INTERESSE', 'MATRICULADO', 'RETORNO', 'OCUPADO', 'CAIXA_POSTAL', 'NUMERO_INVALIDO', 'NAO_LIGAR_NOVAMENTE'];
 
