@@ -1,14 +1,15 @@
 import React, { useEffect, useState } from 'react';
-import { ChevronDown, Headphones, KeyRound, PhoneCall, Settings, ShieldCheck, Users, type LucideIcon } from 'lucide-react';
+import { ChevronDown, FileSearch, Headphones, KeyRound, PhoneCall, Settings, ShieldCheck, Users, type LucideIcon } from 'lucide-react';
 import { api } from '../services/api';
 import Notice, { type NoticeMessage } from '../components/Notice';
 import SipSoftphone from '../SipSoftphone';
 import UsersPro from './UsersPro';
+import AuditSettings from './AuditSettings';
 import '../ops-pages.css';
 import '../crm-polish.css';
 import '../configurations.css';
 
-type ConfigSection = 'VOIP' | 'USERS' | 'SOFTPHONE' | 'PERMISSIONS';
+type ConfigSection = 'VOIP' | 'USERS' | 'SOFTPHONE' | 'PERMISSIONS' | 'AUDIT';
 
 type VoipConfig = {
   provider?: string;
@@ -31,6 +32,7 @@ const sectionOptions: ConfigOption[] = [
   { value: 'USERS', label: 'Usuários', description: 'Criação de usuários, perfis, ramais e acesso.', icon: Users },
   { value: 'SOFTPHONE', label: 'Configuração Softphone', description: 'Credenciais e teste do telefone WebRTC usado na Mesa.', icon: Headphones },
   { value: 'PERMISSIONS', label: 'Permissões', description: 'Matriz de acesso por perfil e responsabilidade.', icon: ShieldCheck },
+  { value: 'AUDIT', label: 'Auditoria', description: 'Histórico de ações, usuários, entidades e eventos críticos.', icon: FileSearch },
 ];
 
 function VoipSettings() {
@@ -111,12 +113,12 @@ export default function ConfigurationsPage() {
 
   return <section className="configurationsPage polishPage">
     <div className="polishHero configHero">
-      <div><small>Administração do sistema</small><h2>Configurações centralizadas em um único lugar</h2><p>VoIP, usuários, softphone, perfis e permissões organizados por categoria para reduzir itens soltos no menu.</p></div>
+      <div><small>Administração do sistema</small><h2>Configurações centralizadas em um único lugar</h2><p>VoIP, usuários, softphone, perfis, permissões e auditoria organizados por categoria para reduzir itens soltos no menu.</p></div>
       <label className="configSelector"><span>Configurações</span><div><CurrentIcon size={18} /><select value={section} onChange={(event) => setSection(event.target.value as ConfigSection)}>{sectionOptions.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}</select><ChevronDown size={17} /></div></label>
     </div>
 
     <nav className="configTabs" aria-label="Categorias de configuração">{sectionOptions.map((item) => { const Icon = item.icon; return <button key={item.value} className={section === item.value ? 'active' : ''} onClick={() => setSection(item.value)}><Icon size={18} /><span><b>{item.label}</b><small>{item.description}</small></span></button>; })}</nav>
 
-    {section === 'VOIP' ? <VoipSettings /> : section === 'USERS' ? <UsersPro /> : section === 'SOFTPHONE' ? <SoftphoneSettings /> : <PermissionsSettings />}
+    {section === 'VOIP' ? <VoipSettings /> : section === 'USERS' ? <UsersPro /> : section === 'SOFTPHONE' ? <SoftphoneSettings /> : section === 'PERMISSIONS' ? <PermissionsSettings /> : <AuditSettings />}
   </section>;
 }
