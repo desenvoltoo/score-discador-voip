@@ -10,6 +10,10 @@ jobs:
   build:
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    env:
+      DATABASE_URL: postgresql://ci_user:ci_password@127.0.0.1:5432/score_ci?schema=public
+      JWT_SECRET: ci-only-secret
+      NODE_ENV: test
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -21,6 +25,9 @@ jobs:
 
       - name: Install dependencies
         run: npm install --include=dev --workspaces
+
+      - name: Generate Prisma client
+        run: npm run --workspace @score/api prisma --if-present || npx prisma generate --schema apps/api/prisma/schema.prisma
 
       - name: Build workspaces
         run: npm run build
