@@ -3,6 +3,9 @@ import { AlertTriangle, CheckCircle2, ClipboardCheck, Download, MessageSquare, R
 import { api } from '../services/api';
 import Notice, { type NoticeMessage } from '../components/Notice';
 import StatusBadge from '../components/StatusBadge';
+import { useAsyncAction } from '../hooks/useAsyncAction';
+import { exportCsv } from '../utils/exportCsv';
+import { formatDateTime, formatStatus } from '../utils/format';
 import '../ops-pages.css';
 import '../crm-polish.css';
 
@@ -30,13 +33,6 @@ type CallRow = {
   operator?: { name?: string };
   campaign?: { name?: string };
 };
-
-function fmt(v: any) {
-  if (v === null || v === undefined || v === '') return '—';
-  if (typeof v === 'number') return v.toLocaleString('pt-BR');
-  if (String(v).includes('T')) return String(v).replace('T', ' ').slice(0, 16);
-  return String(v).replaceAll('_', ' ');
-}
 
 function qualityScore(call: CallRow) {
   let score = 100;
@@ -67,112 +63,91 @@ function scriptFor(call: CallRow) {
   return `Olá, ${lead?.name || 'tudo bem'}! Estou entrando em contato sobre seu interesse em ${course}.`;
 }
 
-function downloadCsv(rows: CallRow[]) {
-  const headers = ['data', 'campanha', 'operador', 'lead', 'telefone', 'desfecho', 'score_qualidade', 'alertas', 'observacao'];
-  const csv = [headers.join(';'), ...rows.map((r) => [
-    r.createdAt,
-    r.campaign?.name,
-    r.operator?.name,
-    r.lead?.name,
-    r.lead?.phoneNormalized,
-    r.finalDisposition,
-    qualityScore(r),
-    riskItems(r).join(', '),
-    r.notes,
-  ].map((v) => `"${String(v ?? '').replaceAll('"', '""')}"`).join(';'))].join('\n');
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
-  a.download = 'qualidade-atendimento-referencia.csv';
-  a.click();
-}
-
 export default function QualityCenterPage({ openReports }: { openReports: () => void }) {
   const [calls, setCalls] = useState<CallRow[]>([]);
   const [query, setQuery] = useState('');
   const [onlyRisk, setOnlyRisk] = useState(false);
-  const [loading, setLoading] = useState(false);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
   const [msg, setMsg] = useState<NoticeMessage>(null);
+  const { pending: loading, run } = useAsyncAction();
 
   async function load() {
-    try {
-      setLoading(true);
-      setCalls(await api('/reports/calls'));
-    } catch (e: any) {
-      setMsg({ type: 'err', text: e.message || 'Não foi possível carregar auditoria.' });
-    } finally { setLoading(false); }
+    await run(async () => {
+      try {
+        const rows = await api('/reports/calls');
+        setCalls(Array.isArray(rows) ? rows : []);
+        setPage(1);
+      } catch (error: unknown) {
+        const text = error instanceof Error ? error.message : 'Não foi possível carregar auditoria.';
+        setMsg({ type: 'err', text });
+      }
+    });
   }
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => { void load(); }, []);
 
   const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    return calls.filter((c) => {
-      const haystack = [c.lead?.name, c.lead?.phoneNormalized, c.operator?.name, c.campaign?.name, c.finalDisposition, c.notes].join(' ').toLowerCase();
-      const risk = riskItems(c).length > 0;
-      return (!q || haystack.includes(q)) && (!onlyRisk || risk);
+    const normalizedQuery = query.trim().toLocaleLowerCase('pt-BR');
+    return calls.filter((call) => {
+      const haystack = [call.lead?.name, call.lead?.phoneNormalized, call.operator?.name, call.campaign?.name, call.finalDisposition, call.notes].join(' ').toLocaleLowerCase('pt-BR');
+      const risky = riskItems(call).length > 0;
+      return (!normalizedQuery || haystack.includes(normalizedQuery)) && (!onlyRisk || risky);
     });
   }, [calls, query, onlyRisk]);
 
-  const avg = useMemo(() => filtered.length ? Math.round(filtered.reduce((sum, c) => sum + qualityScore(c), 0) / filtered.length) : 0, [filtered]);
-  const risky = filtered.filter((c) => riskItems(c).length).length;
-  const noNotes = filtered.filter((c) => !c.notes || c.notes.trim().length < 12).length;
-  const noDisposition = filtered.filter((c) => !c.finalDisposition).length;
-  const excellent = filtered.filter((c) => qualityScore(c) >= 90).length;
+  useEffect(() => { setPage(1); }, [query, onlyRisk, pageSize]);
+
+  const avg = useMemo(() => filtered.length ? Math.round(filtered.reduce((sum, call) => sum + qualityScore(call), 0) / filtered.length) : 0, [filtered]);
+  const risky = filtered.filter((call) => riskItems(call).length).length;
+  const noNotes = filtered.filter((call) => !call.notes || call.notes.trim().length < 12).length;
+  const noDisposition = filtered.filter((call) => !call.finalDisposition).length;
+  const excellent = filtered.filter((call) => qualityScore(call) >= 90).length;
+  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
+  const safePage = Math.min(page, totalPages);
+  const pageRows = filtered.slice((safePage - 1) * pageSize, safePage * pageSize);
+
+  function download() {
+    exportCsv('qualidade-atendimento-referencia.csv', ['data', 'campanha', 'operador', 'lead', 'telefone', 'desfecho', 'score_qualidade', 'alertas', 'observacao'], filtered.map((row) => [row.createdAt, row.campaign?.name, row.operator?.name, row.lead?.name, row.lead?.phoneNormalized, row.finalDisposition, qualityScore(row), riskItems(row).join(', '), row.notes]));
+  }
+
+  async function copyScript(call: CallRow) {
+    try {
+      await navigator.clipboard.writeText(scriptFor(call));
+      setMsg({ type: 'ok', text: 'Mensagem sugerida copiada.' });
+    } catch {
+      setMsg({ type: 'err', text: 'Não foi possível copiar a mensagem.' });
+    }
+  }
 
   return <section className="qualityCenter polishPage">
-    <div className="polishHero qualityHero">
-      <div>
-        <small>Qualidade e auditoria</small>
-        <h2>Supervisão visual de atendimento, registro e compliance</h2>
-        <p>Encontre rapidamente observações fracas, desfechos ausentes, retornos sem data e mensagens de WhatsApp recomendadas por atendimento.</p>
-      </div>
-      <div className="heroStack"><button className="ghostBtn" onClick={openReports}><ClipboardCheck size={17} />Relatório executivo</button><button onClick={load}><RefreshCw size={17} />Atualizar</button></div>
-    </div>
+    <div className="polishHero qualityHero"><div><small>Qualidade e auditoria</small><h2>Supervisão visual de atendimento, registro e compliance</h2><p>Encontre rapidamente observações fracas, desfechos ausentes, retornos sem data e mensagens de WhatsApp recomendadas por atendimento.</p></div><div className="heroStack"><button className="ghostBtn" onClick={openReports}><ClipboardCheck size={17} />Relatório executivo</button><button onClick={() => void load()} disabled={loading}><RefreshCw size={17} />{loading ? 'Atualizando...' : 'Atualizar'}</button></div></div>
 
-    <div className="polishKpis qualityKpis">
-      <div><small>Score médio</small><strong>{avg}%</strong><span>qualidade do registro</span></div>
-      <div><small>Com alerta</small><strong>{risky}</strong><span>precisam revisão</span></div>
-      <div><small>Obs. fraca</small><strong>{noNotes}</strong><span>sem contexto suficiente</span></div>
-      <div><small>Excelentes</small><strong>{excellent}</strong><span>acima de 90%</span></div>
-    </div>
-
+    <div className="polishKpis qualityKpis"><div><small>Score médio</small><strong>{avg}%</strong><span>qualidade do registro</span></div><div><small>Com alerta</small><strong>{risky}</strong><span>precisam revisão</span></div><div><small>Obs. fraca</small><strong>{noNotes}</strong><span>sem contexto suficiente</span></div><div><small>Excelentes</small><strong>{excellent}</strong><span>acima de 90%</span></div></div>
     <Notice msg={msg} />
 
     <section className="qualityGrid qualityGridPolish">
       <div className="panel qualityMainPanel">
-        <div className="panelHeader"><h3><ShieldCheck size={20} />Checklist de qualidade</h3><button className="ghostBtn" onClick={() => downloadCsv(filtered)}><Download size={16} />Exportar auditoria</button></div>
-        <div className="filters singleFilter qualityFilters"><label>Buscar<input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Lead, telefone, campanha, operador ou desfecho" /></label><button onClick={() => setOnlyRisk(!onlyRisk)}><Search size={16} />{onlyRisk ? 'Mostrar todos' : 'Só alertas'}</button></div>
+        <div className="panelHeader"><h3><ShieldCheck size={20} />Checklist de qualidade</h3><button className="ghostBtn" onClick={download} disabled={!filtered.length}><Download size={16} />Exportar auditoria</button></div>
+        <div className="filters singleFilter qualityFilters"><label>Buscar<input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Lead, telefone, campanha, operador ou desfecho" /></label><button onClick={() => setOnlyRisk((value) => !value)}><Search size={16} />{onlyRisk ? 'Mostrar todos' : 'Só alertas'}</button></div>
         {loading ? <p>Carregando...</p> : <div className="qualityList qualityListPolish">
-          {filtered.map((call) => {
+          {pageRows.map((call) => {
             const risks = riskItems(call);
             const score = qualityScore(call);
             return <article key={call.id} className={`qualityCard qualityCardPolish ${score < 70 ? 'riskHigh' : score < 90 ? 'riskMedium' : 'riskOk'}`}>
               <div className="qualityTop"><div><b>{call.lead?.name || 'Lead sem nome'}</b><span>{call.lead?.phoneNormalized || 'Sem telefone'} • {call.campaign?.name || 'Sem campanha'}</span></div><strong className={score < 70 ? 'bad' : score < 90 ? 'warn' : 'ok'}>{score}%</strong></div>
-              <div className="qualityMeta"><StatusBadge status={call.finalDisposition || call.status || 'SEM_DESFECHO'} /><span>{fmt(call.createdAt)}</span><span>{call.operator?.name || 'Operador não informado'}</span></div>
+              <div className="qualityMeta"><StatusBadge status={call.finalDisposition || call.status || 'SEM_DESFECHO'} /><span>{formatDateTime(call.createdAt)}</span><span>{call.operator?.name || 'Operador não informado'}</span></div>
               <p>{call.notes || 'Sem observação registrada.'}</p>
               <div className="riskList riskListPolish">{risks.length ? risks.map((risk) => <span key={risk}><AlertTriangle size={14} />{risk}</span>) : <span className="ok"><CheckCircle2 size={14} />Registro consistente</span>}</div>
-              <div className="scriptSuggestion scriptPolish"><small><Sparkles size={14} />Mensagem sugerida</small><p>{scriptFor(call)}</p><button className="ghostBtn" onClick={() => navigator.clipboard.writeText(scriptFor(call))}><MessageSquare size={15} />Copiar texto</button></div>
+              <div className="scriptSuggestion scriptPolish"><small><Sparkles size={14} />Mensagem sugerida</small><p>{scriptFor(call)}</p><button className="ghostBtn" onClick={() => void copyScript(call)}><MessageSquare size={15} />Copiar texto</button></div>
             </article>;
           })}
-          {!filtered.length && <div className="empty"><ClipboardCheck size={34} /><strong>Nenhum atendimento encontrado</strong><span>Faça atendimentos para iniciar a auditoria.</span></div>}
+          {!filtered.length && <div className="empty"><ClipboardCheck size={34} /><strong>Nenhum atendimento encontrado</strong><span>Faça atendimentos ou altere os filtros.</span></div>}
         </div>}
+        {!!filtered.length && <div className="paginationBar"><label>Cards<select value={pageSize} onChange={(event) => setPageSize(Number(event.target.value))}><option value={10}>10</option><option value={20}>20</option><option value={50}>50</option></select></label><span>Página {safePage} de {totalPages} • {filtered.length} registros</span><div><button className="ghostBtn" disabled={safePage <= 1} onClick={() => setPage((value) => Math.max(1, value - 1))}>Anterior</button><button className="ghostBtn" disabled={safePage >= totalPages} onClick={() => setPage((value) => Math.min(totalPages, value + 1))}>Próxima</button></div></div>}
       </div>
 
-      <aside className="panel accent qualityRules">
-        <h3><Target size={20} />Padrão recomendado</h3>
-        <div className="qualityRuleList">
-          <span><CheckCircle2 size={16} />Desfecho claro em todo atendimento.</span>
-          <span><TrendingUp size={16} />Observação com objeção ou próximo passo.</span>
-          <span><CalendarMini />Retorno sempre com data e horário.</span>
-          <span><ShieldCheck size={16} />Pedido de não contato deve ir para Não Ligar.</span>
-          <span><Sparkles size={16} />Mensagem pós-ligação reforça o CTA.</span>
-        </div>
-        <div className="qualitySummaryBox"><b>{noDisposition}</b><span>chamadas sem desfecho precisam ser revisadas primeiro.</span></div>
-      </aside>
+      <aside className="panel accent qualityRules"><h3><Target size={20} />Padrão recomendado</h3><div className="qualityRuleList"><span><CheckCircle2 size={16} />Desfecho claro em todo atendimento.</span><span><TrendingUp size={16} />Observação com objeção ou próximo passo.</span><span><span className="calendarMini" />Retorno sempre com data e horário.</span><span><ShieldCheck size={16} />Pedido de não contato deve ir para Não Ligar.</span><span><Sparkles size={16} />Mensagem pós-ligação reforça o CTA.</span></div><div className="qualitySummaryBox"><b>{noDisposition}</b><span>chamadas sem desfecho precisam ser revisadas primeiro.</span></div><p className="muted">Status exibidos: {formatStatus(onlyRisk ? 'SOMENTE_ALERTAS' : 'TODOS')}</p></aside>
     </section>
   </section>;
-}
-
-function CalendarMini() {
-  return <span className="calendarMini">•</span>;
 }
