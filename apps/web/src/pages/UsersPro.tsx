@@ -4,6 +4,8 @@ import { api } from '../services/api';
 import Notice, { type NoticeMessage } from '../components/Notice';
 import '../crm-polish.css';
 
+type Role = 'ADMIN' | 'SUPERVISOR' | 'OPERADOR';
+
 function fmt(v: any) {
   if (v === null || v === undefined || v === '') return '—';
   if (typeof v === 'boolean') return v ? 'Ativo' : 'Inativo';
@@ -17,7 +19,7 @@ function roleHint(role: string) {
   return 'Foco em Mesa do Operador, leads, ligações e registros.';
 }
 
-export default function UsersPro() {
+export default function UsersPro({ role }: { role: Role }) {
   const [rows, setRows] = useState<any[]>([]);
   const [form, setForm] = useState<any>({ name: '', email: '', password: '', role: 'OPERADOR', extension: '' });
   const [query, setQuery] = useState('');
@@ -37,6 +39,7 @@ export default function UsersPro() {
 
   async function save(e: React.FormEvent) {
     e.preventDefault();
+    if (role !== 'ADMIN') return;
     try {
       if (!form.name || !form.email || !form.password) {
         setMsg({ type: 'info', text: 'Preencha nome, e-mail e senha para criar o usuário.' });
@@ -51,22 +54,22 @@ export default function UsersPro() {
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
-    return rows.filter((u) => !q || [u.name, u.email, u.role, u.extension].join(' ').toLowerCase().includes(q));
+    return rows.filter((user) => !q || [user.name, user.email, user.role, user.extension].join(' ').toLowerCase().includes(q));
   }, [rows, query]);
 
   const totals = useMemo(() => ({
     total: rows.length,
-    admins: rows.filter((u) => u.role === 'ADMIN').length,
-    supervisors: rows.filter((u) => u.role === 'SUPERVISOR').length,
-    operators: rows.filter((u) => u.role === 'OPERADOR').length,
+    admins: rows.filter((user) => user.role === 'ADMIN').length,
+    supervisors: rows.filter((user) => user.role === 'SUPERVISOR').length,
+    operators: rows.filter((user) => user.role === 'OPERADOR').length,
   }), [rows]);
 
   return <section className="usersPro polishPage">
     <div className="polishHero usersHero">
       <div>
-        <small>Gestão de acessos</small>
-        <h2>Crie usuários com perfil, ramal e contexto operacional</h2>
-        <p>Visual mais limpo para cadastrar equipe, conferir permissões e organizar quem opera, supervisiona e administra o discador.</p>
+        <small>Gestão de acessos · {role}</small>
+        <h2>{role === 'ADMIN' ? 'Crie usuários com perfil, ramal e contexto operacional' : 'Consulte a equipe e os acessos cadastrados'}</h2>
+        <p>{role === 'ADMIN' ? 'Cadastre a equipe, defina perfis e associe ramais.' : 'Supervisores podem consultar a equipe, mas a criação e alteração de usuários permanecem restritas ao administrador.'}</p>
       </div>
       <button onClick={load}><RefreshCw size={17} />Atualizar equipe</button>
     </div>
@@ -81,7 +84,7 @@ export default function UsersPro() {
     </div>
 
     <section className="usersLayout">
-      <div className="panel userCreatePanel">
+      {role === 'ADMIN' && <div className="panel userCreatePanel">
         <div className="panelHeader"><h3><UserCog size={20} />Novo usuário</h3><span className="muted">Perfil: {form.role}</span></div>
         <form className="userForm" onSubmit={save}>
           <label>Nome<input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="Nome do colaborador" /></label>
@@ -92,20 +95,20 @@ export default function UsersPro() {
           <div className="rolePreview wide"><ShieldCheck size={18} /><div><b>{form.role}</b><span>{roleHint(form.role)}</span></div></div>
           <button className="wide"><Plus size={17} />Criar usuário</button>
         </form>
-      </div>
+      </div>}
 
       <div className="panel usersListPanel">
         <div className="panelHeader"><h3><Users size={20} />Equipe</h3><span className="muted">{loading ? 'Carregando...' : `${filtered.length} exibidos`}</span></div>
         <div className="filters singleFilter usersFilter"><label>Buscar<input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Nome, e-mail, perfil ou ramal" /></label><button onClick={load}><Search size={16} />Buscar</button></div>
         <div className="userCards">
-          {filtered.map((u) => <article key={u.id} className="userCard">
-            <div className="userAvatar">{String(u.name || 'U').slice(0, 2).toUpperCase()}</div>
+          {filtered.map((user) => <article key={user.id} className="userCard">
+            <div className="userAvatar">{String(user.name || 'U').slice(0, 2).toUpperCase()}</div>
             <div className="userMain">
-              <div className="userTop"><b>{u.name}</b><span className={`rolePill role-${String(u.role).toLowerCase()}`}>{u.role}</span></div>
-              <p><Mail size={14} />{u.email}</p>
-              <p><PhoneCall size={14} />Ramal: {fmt(u.extension)}</p>
+              <div className="userTop"><b>{user.name}</b><span className={`rolePill role-${String(user.role).toLowerCase()}`}>{user.role}</span></div>
+              <p><Mail size={14} />{user.email}</p>
+              <p><PhoneCall size={14} />Ramal: {fmt(user.extension)}</p>
             </div>
-            <div className={`userState ${u.active ? 'ok' : 'bad'}`}>{u.active ? <CheckCircle2 size={15} /> : <XCircle size={15} />}{fmt(u.active)}</div>
+            <div className={`userState ${user.active ? 'ok' : 'bad'}`}>{user.active ? <CheckCircle2 size={15} /> : <XCircle size={15} />}{fmt(user.active)}</div>
           </article>)}
           {!filtered.length && <div className="empty"><KeyRound size={34} /><strong>Nenhum usuário encontrado</strong><span>Crie um usuário ou ajuste a busca.</span></div>}
         </div>
