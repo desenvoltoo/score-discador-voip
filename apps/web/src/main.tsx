@@ -1,8 +1,8 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import {
-  Activity, BarChart3, CheckCircle2, ClipboardList, Copy, FileDown, Headphones,
-  LayoutDashboard, LogOut, Phone, PhoneCall, Plus, RefreshCw, Search, Settings,
+  Activity, BarChart3, CalendarClock, CheckCircle2, ClipboardList, FileDown, FileSpreadsheet,
+  Headphones, LayoutDashboard, LogOut, Phone, PhoneCall, Plus, RefreshCw, Settings,
   ShieldBan, Sparkles, Target, TrendingUp, Upload, Users,
 } from 'lucide-react';
 import { api } from './services/api';
@@ -13,14 +13,17 @@ import GrowthCommandCenter from './GrowthCommandCenter';
 import ImportLeadsPro from './ImportLeadsPro';
 import LeadsPro from './pages/LeadsPro';
 import OperatorDeskPro from './pages/OperatorDeskPro';
+import ReturnsPage from './pages/ReturnsPage';
+import ImportHistoryPage from './pages/ImportHistoryPage';
 import './style.css';
 
 const APP_NAME = 'ReferencIA Discador';
 const DEFAULT_LOGIN = 'admin@score.com.br';
 const DEFAULT_PASSWORD = 'Admin@123456';
 const menu = [
-  ['Dashboard', LayoutDashboard], ['Central IA', TrendingUp], ['Campanhas', Target], ['Importar Leads', Upload], ['Leads', Phone],
-  ['Mesa do Operador', Headphones], ['Softphone SIP', PhoneCall], ['Relatórios', BarChart3], ['Não Ligar', ShieldBan], ['Usuários', Users], ['VoIP', Settings],
+  ['Dashboard', LayoutDashboard], ['Central IA', TrendingUp], ['Campanhas', Target], ['Importar Leads', Upload],
+  ['Hist. Importações', FileSpreadsheet], ['Leads', Phone], ['Retornos', CalendarClock], ['Mesa do Operador', Headphones],
+  ['Softphone SIP', PhoneCall], ['Relatórios', BarChart3], ['Não Ligar', ShieldBan], ['Usuários', Users], ['VoIP', Settings],
 ] as const;
 
 type Column = { key: string; label: string; render?: (row: any) => React.ReactNode };
@@ -90,7 +93,7 @@ function Shell({ children, page, setPage }: { children: React.ReactNode; page: s
 function Dashboard({ setPage }: { setPage: (p: string) => void }) {
   const { data, loading, error, reload } = useLoad<any>(() => api('/dashboard/summary'), []);
   const cards = [['Total de leads', data?.total, 'Base disponível'], ['Novos', data?.newLeads, 'Aguardando ação'], ['Chamadas hoje', data?.callsToday, 'Tentativas registradas'], ['Atendidos', data?.atendidos, 'Contatos humanos'], ['Interessados', data?.interessados, 'Potencial comercial'], ['Matrículas', data?.matriculas, 'Conversão final'], ['Não ligar', data?.blocked, 'Bloqueios LGPD'], ['Conversão', `${fmt((data?.taxaConversao || 0) * 100)}%`, 'Matrículas / leads']];
-  return <><div className="heroPanel heroPremium"><div><small>Visão geral</small><h2>Operação comercial com telefonia WebRTC e inteligência de atendimento</h2><p>Campanha, fila, chamada no navegador, screen pop, desfecho, LGPD e análise gerencial no mesmo fluxo.</p></div><button onClick={reload}><RefreshCw size={17} />Atualizar</button></div><div className="pipeline"><div>Base importada</div><div>Score de prioridade</div><div>Softphone SIP</div><div>Agent Assist</div><div>Relatório</div></div>{error && <Notice msg={{ type: 'err', text: error }} />}<div className="kpiGrid">{cards.map(([a, b, c]) => <div className="kpi" key={a}><small>{a}</small><strong>{loading ? '...' : fmt(b)}</strong><span>{c}</span></div>)}</div><section className="twoCols"><div className="panel"><h3><Sparkles size={19} />Atalhos operacionais</h3><div className="steps"><button onClick={() => setPage('Central IA')}>0. Central IA</button><button onClick={() => setPage('Campanhas')}>1. Criar campanha</button><button onClick={() => setPage('Importar Leads')}>2. Importar leads</button><button onClick={() => setPage('Mesa do Operador')}>3. Operar com IA</button></div></div><div className="panel accent"><h3><Activity size={19} />Melhoria aplicada</h3><p>Leads e Mesa agora têm ações visíveis, drawer de detalhe, status colorido, WhatsApp rápido e fluxo mais claro para operador.</p></div></section></>;
+  return <><div className="heroPanel heroPremium"><div><small>Visão geral</small><h2>Operação comercial com telefonia WebRTC, retorno e histórico</h2><p>Campanha, base, fila, chamada no navegador, retorno agendado, desfecho, LGPD e relatório no mesmo fluxo.</p></div><button onClick={reload}><RefreshCw size={17} />Atualizar</button></div><div className="pipeline"><div>Base importada</div><div>Histórico</div><div>Retornos</div><div>Softphone SIP</div><div>Relatório</div></div>{error && <Notice msg={{ type: 'err', text: error }} />}<div className="kpiGrid">{cards.map(([a, b, c]) => <div className="kpi" key={a}><small>{a}</small><strong>{loading ? '...' : fmt(b)}</strong><span>{c}</span></div>)}</div><section className="twoCols"><div className="panel"><h3><Sparkles size={19} />Atalhos operacionais</h3><div className="steps"><button onClick={() => setPage('Importar Leads')}>1. Importar leads</button><button onClick={() => setPage('Hist. Importações')}>2. Ver histórico</button><button onClick={() => setPage('Retornos')}>3. Gerenciar retornos</button><button onClick={() => setPage('Mesa do Operador')}>4. Operar com IA</button></div></div><div className="panel accent"><h3><Activity size={19} />Melhoria aplicada</h3><p>Agora há central de retornos e histórico de importações para reduzir perda de follow-up e dar visibilidade sobre qualidade das bases.</p></div></section></>;
 }
 
 function Campaigns() {
@@ -137,7 +140,7 @@ function Voip() {
 function App() {
   const [ok, setOk] = useState(!!localStorage.getItem('token'));
   const [page, setPage] = useState<string>('Dashboard');
-  const content = useMemo(() => page === 'Dashboard' ? <Dashboard setPage={setPage} /> : page === 'Central IA' ? <GrowthCommandCenter /> : page === 'Campanhas' ? <Campaigns /> : page === 'Importar Leads' ? <ImportLeadsPro /> : page === 'Leads' ? <LeadsPro openOperator={() => setPage('Mesa do Operador')} /> : page === 'Mesa do Operador' ? <OperatorDeskPro openPhone={() => setPage('Softphone SIP')} /> : page === 'Softphone SIP' ? <SipSoftphone /> : page === 'Relatórios' ? <Reports /> : page === 'Não Ligar' ? <DoNotCall /> : page === 'Usuários' ? <UsersPage /> : <Voip />, [page]);
+  const content = useMemo(() => page === 'Dashboard' ? <Dashboard setPage={setPage} /> : page === 'Central IA' ? <GrowthCommandCenter /> : page === 'Campanhas' ? <Campaigns /> : page === 'Importar Leads' ? <ImportLeadsPro /> : page === 'Hist. Importações' ? <ImportHistoryPage openImport={() => setPage('Importar Leads')} /> : page === 'Leads' ? <LeadsPro openOperator={() => setPage('Mesa do Operador')} /> : page === 'Retornos' ? <ReturnsPage openOperator={() => setPage('Mesa do Operador')} /> : page === 'Mesa do Operador' ? <OperatorDeskPro openPhone={() => setPage('Softphone SIP')} /> : page === 'Softphone SIP' ? <SipSoftphone /> : page === 'Relatórios' ? <Reports /> : page === 'Não Ligar' ? <DoNotCall /> : page === 'Usuários' ? <UsersPage /> : <Voip />, [page]);
   if (!ok) return <Login on={() => setOk(true)} />;
   return <Shell page={page} setPage={setPage}>{content}</Shell>;
 }
