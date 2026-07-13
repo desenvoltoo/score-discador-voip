@@ -4,12 +4,14 @@ import cors from 'cors';
 import routes from './routes/index.js';
 import operationsRoutes from './routes/operations-safe.js';
 import callControlRoutes from './routes/call-control.js';
+import roleGuard from './middlewares/role-guard.js';
 
 const app = express();
 app.use(cors());
 app.use(express.json({ limit: '2mb' }));
 app.get('/health', (_, res) => res.json({ ok: true, name: 'SCORE Discador' }));
 
+app.use('/api', roleGuard);
 app.use('/api', callControlRoutes);
 app.use('/api', operationsRoutes);
 app.use('/api', routes);
