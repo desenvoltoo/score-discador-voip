@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { ChevronDown, Headphones, KeyRound, PhoneCall, Settings, ShieldCheck, Users } from 'lucide-react';
+import { ChevronDown, Headphones, KeyRound, PhoneCall, Settings, ShieldCheck, Users, type LucideIcon } from 'lucide-react';
 import { api } from '../services/api';
 import Notice, { type NoticeMessage } from '../components/Notice';
 import SipSoftphone from '../SipSoftphone';
@@ -19,7 +19,14 @@ type VoipConfig = {
   operatorPrefix?: string;
 };
 
-const sectionOptions: Array<{ value: ConfigSection; label: string; description: string; icon: React.ComponentType<{ size?: number }> }> = [
+type ConfigOption = {
+  value: ConfigSection;
+  label: string;
+  description: string;
+  icon: LucideIcon;
+};
+
+const sectionOptions: ConfigOption[] = [
   { value: 'VOIP', label: 'VoIP', description: 'Servidor, contexto, tronco e integração Asterisk.', icon: PhoneCall },
   { value: 'USERS', label: 'Usuários', description: 'Criação de usuários, perfis, ramais e acesso.', icon: Users },
   { value: 'SOFTPHONE', label: 'Configuração Softphone', description: 'Credenciais e teste do telefone WebRTC usado na Mesa.', icon: Headphones },
