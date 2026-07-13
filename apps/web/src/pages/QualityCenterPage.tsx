@@ -1,9 +1,10 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { AlertTriangle, CheckCircle2, ClipboardCheck, Download, MessageSquare, RefreshCw, Search, ShieldCheck, Sparkles, Target } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, ClipboardCheck, Download, MessageSquare, RefreshCw, Search, ShieldCheck, Sparkles, Target, TrendingUp } from 'lucide-react';
 import { api } from '../services/api';
 import Notice, { type NoticeMessage } from '../components/Notice';
 import StatusBadge from '../components/StatusBadge';
 import '../ops-pages.css';
+import '../crm-polish.css';
 
 type Lead = {
   id: string;
@@ -116,56 +117,62 @@ export default function QualityCenterPage({ openReports }: { openReports: () => 
   const risky = filtered.filter((c) => riskItems(c).length).length;
   const noNotes = filtered.filter((c) => !c.notes || c.notes.trim().length < 12).length;
   const noDisposition = filtered.filter((c) => !c.finalDisposition).length;
+  const excellent = filtered.filter((c) => qualityScore(c) >= 90).length;
 
-  return <section>
-    <div className="heroPanel heroPremium">
+  return <section className="qualityCenter polishPage">
+    <div className="polishHero qualityHero">
       <div>
         <small>Qualidade e auditoria</small>
-        <h2>Revise atendimentos, falhas de registro e próximos scripts</h2>
-        <p>Central para supervisão acompanhar qualidade do atendimento, observações fracas, desfechos ausentes, riscos LGPD e mensagens sugeridas.</p>
+        <h2>Supervisão visual de atendimento, registro e compliance</h2>
+        <p>Encontre rapidamente observações fracas, desfechos ausentes, retornos sem data e mensagens de WhatsApp recomendadas por atendimento.</p>
       </div>
-      <div className="heroActions"><button className="ghostBtn" onClick={openReports}><ClipboardCheck size={17} />Relatório executivo</button><button onClick={load}><RefreshCw size={17} />Atualizar</button></div>
+      <div className="heroStack"><button className="ghostBtn" onClick={openReports}><ClipboardCheck size={17} />Relatório executivo</button><button onClick={load}><RefreshCw size={17} />Atualizar</button></div>
     </div>
 
-    <div className="kpiGrid compactKpis">
-      <div className="kpi"><small>Score médio</small><strong>{avg}%</strong><span>qualidade do registro</span></div>
-      <div className="kpi"><small>Com alerta</small><strong>{risky}</strong><span>precisam revisão</span></div>
-      <div className="kpi"><small>Obs. fraca</small><strong>{noNotes}</strong><span>sem contexto suficiente</span></div>
-      <div className="kpi"><small>Sem desfecho</small><strong>{noDisposition}</strong><span>chamadas incompletas</span></div>
+    <div className="polishKpis qualityKpis">
+      <div><small>Score médio</small><strong>{avg}%</strong><span>qualidade do registro</span></div>
+      <div><small>Com alerta</small><strong>{risky}</strong><span>precisam revisão</span></div>
+      <div><small>Obs. fraca</small><strong>{noNotes}</strong><span>sem contexto suficiente</span></div>
+      <div><small>Excelentes</small><strong>{excellent}</strong><span>acima de 90%</span></div>
     </div>
 
     <Notice msg={msg} />
 
-    <section className="qualityGrid">
-      <div className="panel">
+    <section className="qualityGrid qualityGridPolish">
+      <div className="panel qualityMainPanel">
         <div className="panelHeader"><h3><ShieldCheck size={20} />Checklist de qualidade</h3><button className="ghostBtn" onClick={() => downloadCsv(filtered)}><Download size={16} />Exportar auditoria</button></div>
-        <div className="filters singleFilter"><label>Buscar<input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Lead, telefone, campanha, operador ou desfecho" /></label><button onClick={() => setOnlyRisk(!onlyRisk)}><Search size={16} />{onlyRisk ? 'Mostrar todos' : 'Só alertas'}</button></div>
-        {loading ? <p>Carregando...</p> : <div className="qualityList">
+        <div className="filters singleFilter qualityFilters"><label>Buscar<input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Lead, telefone, campanha, operador ou desfecho" /></label><button onClick={() => setOnlyRisk(!onlyRisk)}><Search size={16} />{onlyRisk ? 'Mostrar todos' : 'Só alertas'}</button></div>
+        {loading ? <p>Carregando...</p> : <div className="qualityList qualityListPolish">
           {filtered.map((call) => {
             const risks = riskItems(call);
             const score = qualityScore(call);
-            return <article key={call.id} className="qualityCard">
+            return <article key={call.id} className={`qualityCard qualityCardPolish ${score < 70 ? 'riskHigh' : score < 90 ? 'riskMedium' : 'riskOk'}`}>
               <div className="qualityTop"><div><b>{call.lead?.name || 'Lead sem nome'}</b><span>{call.lead?.phoneNormalized || 'Sem telefone'} • {call.campaign?.name || 'Sem campanha'}</span></div><strong className={score < 70 ? 'bad' : score < 90 ? 'warn' : 'ok'}>{score}%</strong></div>
               <div className="qualityMeta"><StatusBadge status={call.finalDisposition || call.status || 'SEM_DESFECHO'} /><span>{fmt(call.createdAt)}</span><span>{call.operator?.name || 'Operador não informado'}</span></div>
               <p>{call.notes || 'Sem observação registrada.'}</p>
-              <div className="riskList">{risks.length ? risks.map((risk) => <span key={risk}><AlertTriangle size={14} />{risk}</span>) : <span className="ok"><CheckCircle2 size={14} />Registro consistente</span>}</div>
-              <div className="scriptSuggestion"><small><Sparkles size={14} />Mensagem sugerida</small><p>{scriptFor(call)}</p><button className="ghostBtn" onClick={() => navigator.clipboard.writeText(scriptFor(call))}><MessageSquare size={15} />Copiar texto</button></div>
+              <div className="riskList riskListPolish">{risks.length ? risks.map((risk) => <span key={risk}><AlertTriangle size={14} />{risk}</span>) : <span className="ok"><CheckCircle2 size={14} />Registro consistente</span>}</div>
+              <div className="scriptSuggestion scriptPolish"><small><Sparkles size={14} />Mensagem sugerida</small><p>{scriptFor(call)}</p><button className="ghostBtn" onClick={() => navigator.clipboard.writeText(scriptFor(call))}><MessageSquare size={15} />Copiar texto</button></div>
             </article>;
           })}
           {!filtered.length && <div className="empty"><ClipboardCheck size={34} /><strong>Nenhum atendimento encontrado</strong><span>Faça atendimentos para iniciar a auditoria.</span></div>}
         </div>}
       </div>
 
-      <aside className="panel accent">
+      <aside className="panel accent qualityRules">
         <h3><Target size={20} />Padrão recomendado</h3>
-        <div className="miniGuide">
-          <span>Todo atendimento precisa ter desfecho claro.</span>
-          <span>Observação deve explicar motivo, objeção ou próximo passo.</span>
-          <span>Retorno precisa ter data e horário combinados.</span>
-          <span>Pedido de não contato deve ir para Não Ligar.</span>
-          <span>Mensagem pós-ligação deve reforçar o CTA da matrícula.</span>
+        <div className="qualityRuleList">
+          <span><CheckCircle2 size={16} />Desfecho claro em todo atendimento.</span>
+          <span><TrendingUp size={16} />Observação com objeção ou próximo passo.</span>
+          <span><CalendarMini />Retorno sempre com data e horário.</span>
+          <span><ShieldCheck size={16} />Pedido de não contato deve ir para Não Ligar.</span>
+          <span><Sparkles size={16} />Mensagem pós-ligação reforça o CTA.</span>
         </div>
+        <div className="qualitySummaryBox"><b>{noDisposition}</b><span>chamadas sem desfecho precisam ser revisadas primeiro.</span></div>
       </aside>
     </section>
   </section>;
+}
+
+function CalendarMini() {
+  return <span className="calendarMini">•</span>;
 }
