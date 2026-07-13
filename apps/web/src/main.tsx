@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import {
-  Activity, BarChart3, CalendarClock, CheckCircle2, ClipboardList, FileSpreadsheet,
+  Activity, BarChart3, CalendarClock, ClipboardCheck, ClipboardList, FileSpreadsheet,
   Headphones, LayoutDashboard, LogOut, Phone, PhoneCall, Plus, RefreshCw, Settings,
   ShieldBan, Sparkles, Target, TrendingUp, Upload, Users,
 } from 'lucide-react';
@@ -16,6 +16,7 @@ import OperatorDeskPro from './pages/OperatorDeskPro';
 import ReturnsPage from './pages/ReturnsPage';
 import ImportHistoryPage from './pages/ImportHistoryPage';
 import ReportsPro from './pages/ReportsPro';
+import QualityCenterPage from './pages/QualityCenterPage';
 import './style.css';
 
 const APP_NAME = 'ReferencIA Discador';
@@ -24,7 +25,7 @@ const DEFAULT_PASSWORD = 'Admin@123456';
 const menu = [
   ['Dashboard', LayoutDashboard], ['Central IA', TrendingUp], ['Campanhas', Target], ['Importar Leads', Upload],
   ['Hist. Importações', FileSpreadsheet], ['Leads', Phone], ['Retornos', CalendarClock], ['Mesa do Operador', Headphones],
-  ['Softphone SIP', PhoneCall], ['Relatórios', BarChart3], ['Não Ligar', ShieldBan], ['Usuários', Users], ['VoIP', Settings],
+  ['Softphone SIP', PhoneCall], ['Relatórios', BarChart3], ['Qualidade', ClipboardCheck], ['Não Ligar', ShieldBan], ['Usuários', Users], ['VoIP', Settings],
 ] as const;
 
 type Column = { key: string; label: string; render?: (row: any) => React.ReactNode };
@@ -85,7 +86,7 @@ function Shell({ children, page, setPage }: { children: React.ReactNode; page: s
 function Dashboard({ setPage }: { setPage: (p: string) => void }) {
   const { data, loading, error, reload } = useLoad<any>(() => api('/dashboard/summary'), []);
   const cards = [['Total de leads', data?.total, 'Base disponível'], ['Novos', data?.newLeads, 'Aguardando ação'], ['Chamadas hoje', data?.callsToday, 'Tentativas registradas'], ['Atendidos', data?.atendidos, 'Contatos humanos'], ['Interessados', data?.interessados, 'Potencial comercial'], ['Matrículas', data?.matriculas, 'Conversão final'], ['Não ligar', data?.blocked, 'Bloqueios LGPD'], ['Conversão', `${fmt((data?.taxaConversao || 0) * 100)}%`, 'Matrículas / leads']];
-  return <><div className="heroPanel heroPremium"><div><small>Visão geral</small><h2>Operação comercial com relatórios, retorno e histórico</h2><p>Campanha, base, fila, chamada no navegador, retorno agendado, desfecho, LGPD e relatório executivo no mesmo fluxo.</p></div><button onClick={reload}><RefreshCw size={17} />Atualizar</button></div><div className="pipeline"><div>Base importada</div><div>Histórico</div><div>Retornos</div><div>Softphone SIP</div><div>Relatório</div></div>{error && <Notice msg={{ type: 'err', text: error }} />}<div className="kpiGrid">{cards.map(([a, b, c]) => <div className="kpi" key={a}><small>{a}</small><strong>{loading ? '...' : fmt(b)}</strong><span>{c}</span></div>)}</div><section className="twoCols"><div className="panel"><h3><Sparkles size={19} />Atalhos operacionais</h3><div className="steps"><button onClick={() => setPage('Importar Leads')}>1. Importar leads</button><button onClick={() => setPage('Hist. Importações')}>2. Ver histórico</button><button onClick={() => setPage('Retornos')}>3. Gerenciar retornos</button><button onClick={() => setPage('Relatórios')}>4. Relatório executivo</button></div></div><div className="panel accent"><h3><Activity size={19} />Melhoria aplicada</h3><p>Relatórios agora mostram produtividade, conversão, campanhas, operadores, desfechos e exportação CSV para gestão.</p></div></section></>;
+  return <><div className="heroPanel heroPremium"><div><small>Visão geral</small><h2>Operação comercial com relatórios, retorno, histórico e auditoria</h2><p>Campanha, base, fila, chamada no navegador, retorno agendado, desfecho, LGPD, qualidade e relatório executivo no mesmo fluxo.</p></div><button onClick={reload}><RefreshCw size={17} />Atualizar</button></div><div className="pipeline"><div>Base importada</div><div>Histórico</div><div>Retornos</div><div>Relatório</div><div>Qualidade</div></div>{error && <Notice msg={{ type: 'err', text: error }} />}<div className="kpiGrid">{cards.map(([a, b, c]) => <div className="kpi" key={a}><small>{a}</small><strong>{loading ? '...' : fmt(b)}</strong><span>{c}</span></div>)}</div><section className="twoCols"><div className="panel"><h3><Sparkles size={19} />Atalhos operacionais</h3><div className="steps"><button onClick={() => setPage('Importar Leads')}>1. Importar leads</button><button onClick={() => setPage('Retornos')}>2. Gerenciar retornos</button><button onClick={() => setPage('Relatórios')}>3. Relatório executivo</button><button onClick={() => setPage('Qualidade')}>4. Auditoria de qualidade</button></div></div><div className="panel accent"><h3><Activity size={19} />Melhoria aplicada</h3><p>Agora há uma central de qualidade para revisar observações fracas, desfechos ausentes, retornos sem data e riscos de compliance.</p></div></section></>;
 }
 
 function Campaigns() {
@@ -125,7 +126,7 @@ function Voip() {
 function App() {
   const [ok, setOk] = useState(!!localStorage.getItem('token'));
   const [page, setPage] = useState<string>('Dashboard');
-  const content = useMemo(() => page === 'Dashboard' ? <Dashboard setPage={setPage} /> : page === 'Central IA' ? <GrowthCommandCenter /> : page === 'Campanhas' ? <Campaigns /> : page === 'Importar Leads' ? <ImportLeadsPro /> : page === 'Hist. Importações' ? <ImportHistoryPage openImport={() => setPage('Importar Leads')} /> : page === 'Leads' ? <LeadsPro openOperator={() => setPage('Mesa do Operador')} /> : page === 'Retornos' ? <ReturnsPage openOperator={() => setPage('Mesa do Operador')} /> : page === 'Mesa do Operador' ? <OperatorDeskPro openPhone={() => setPage('Softphone SIP')} /> : page === 'Softphone SIP' ? <SipSoftphone /> : page === 'Relatórios' ? <ReportsPro /> : page === 'Não Ligar' ? <DoNotCall /> : page === 'Usuários' ? <UsersPage /> : <Voip />, [page]);
+  const content = useMemo(() => page === 'Dashboard' ? <Dashboard setPage={setPage} /> : page === 'Central IA' ? <GrowthCommandCenter /> : page === 'Campanhas' ? <Campaigns /> : page === 'Importar Leads' ? <ImportLeadsPro /> : page === 'Hist. Importações' ? <ImportHistoryPage openImport={() => setPage('Importar Leads')} /> : page === 'Leads' ? <LeadsPro openOperator={() => setPage('Mesa do Operador')} /> : page === 'Retornos' ? <ReturnsPage openOperator={() => setPage('Mesa do Operador')} /> : page === 'Mesa do Operador' ? <OperatorDeskPro openPhone={() => setPage('Softphone SIP')} /> : page === 'Softphone SIP' ? <SipSoftphone /> : page === 'Relatórios' ? <ReportsPro /> : page === 'Qualidade' ? <QualityCenterPage openReports={() => setPage('Relatórios')} /> : page === 'Não Ligar' ? <DoNotCall /> : page === 'Usuários' ? <UsersPage /> : <Voip />, [page]);
   if (!ok) return <Login on={() => setOk(true)} />;
   return <Shell page={page} setPage={setPage}>{content}</Shell>;
 }
