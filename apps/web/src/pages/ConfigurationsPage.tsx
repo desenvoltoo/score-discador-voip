@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { ChevronDown, FileSearch, Headphones, KeyRound, PhoneCall, Settings, ShieldCheck, Users, type LucideIcon } from 'lucide-react';
 import { api } from '../services/api';
 import Notice, { type NoticeMessage } from '../components/Notice';
@@ -9,6 +9,7 @@ import '../ops-pages.css';
 import '../crm-polish.css';
 import '../configurations.css';
 
+type Role = 'ADMIN' | 'SUPERVISOR' | 'OPERADOR';
 type ConfigSection = 'VOIP' | 'USERS' | 'SOFTPHONE' | 'PERMISSIONS' | 'AUDIT';
 
 type VoipConfig = {
@@ -25,14 +26,15 @@ type ConfigOption = {
   label: string;
   description: string;
   icon: LucideIcon;
+  roles: Role[];
 };
 
 const sectionOptions: ConfigOption[] = [
-  { value: 'VOIP', label: 'VoIP', description: 'Servidor, contexto, tronco e integração Asterisk.', icon: PhoneCall },
-  { value: 'USERS', label: 'Usuários', description: 'Criação de usuários, perfis, ramais e acesso.', icon: Users },
-  { value: 'SOFTPHONE', label: 'Configuração Softphone', description: 'Credenciais e teste do telefone WebRTC usado na Mesa.', icon: Headphones },
-  { value: 'PERMISSIONS', label: 'Permissões', description: 'Matriz de acesso por perfil e responsabilidade.', icon: ShieldCheck },
-  { value: 'AUDIT', label: 'Auditoria', description: 'Histórico de ações, usuários, entidades e eventos críticos.', icon: FileSearch },
+  { value: 'VOIP', label: 'VoIP', description: 'Servidor, contexto, tronco e integração Asterisk.', icon: PhoneCall, roles: ['ADMIN'] },
+  { value: 'USERS', label: 'Usuários', description: 'Criação de usuários, perfis, ramais e acesso.', icon: Users, roles: ['ADMIN', 'SUPERVISOR'] },
+  { value: 'SOFTPHONE', label: 'Configuração Softphone', description: 'Credenciais e teste do telefone WebRTC usado na Mesa.', icon: Headphones, roles: ['ADMIN'] },
+  { value: 'PERMISSIONS', label: 'Permissões', description: 'Matriz de acesso por perfil e responsabilidade.', icon: ShieldCheck, roles: ['ADMIN', 'SUPERVISOR'] },
+  { value: 'AUDIT', label: 'Auditoria', description: 'Histórico de ações, usuários, entidades e eventos críticos.', icon: FileSearch, roles: ['ADMIN', 'SUPERVISOR'] },
 ];
 
 function VoipSettings() {
@@ -63,12 +65,7 @@ function VoipSettings() {
     </div>
     <aside className="panel accent configHelp">
       <h3><Settings size={20} />Checklist de infraestrutura</h3>
-      <div className="miniGuide">
-        <span>WSS e certificado válidos no servidor.</span>
-        <span>Ramal WebRTC liberado e associado ao usuário.</span>
-        <span>Contexto e tronco configurados para chamadas externas.</span>
-        <span>Horários e limites definidos em cada campanha.</span>
-      </div>
+      <div className="miniGuide"><span>WSS e certificado válidos no servidor.</span><span>Ramal WebRTC liberado e associado ao usuário.</span><span>Contexto e tronco configurados para chamadas externas.</span><span>Horários e limites definidos em cada campanha.</span></div>
     </aside>
   </section>;
 }
@@ -82,12 +79,7 @@ function SoftphoneSettings() {
     </div>
     <aside className="panel accent configHelp">
       <h3><KeyRound size={20} />Boas práticas</h3>
-      <div className="miniGuide">
-        <span>Use um ramal individual por operador.</span>
-        <span>Não compartilhe senha SIP entre usuários.</span>
-        <span>Teste microfone e áudio antes do início do turno.</span>
-        <span>Mantenha as credenciais restritas à equipe autorizada.</span>
-      </div>
+      <div className="miniGuide"><span>Use um ramal individual por operador.</span><span>Não compartilhe senha SIP entre usuários.</span><span>Teste microfone e áudio antes do início do turno.</span><span>Mantenha as credenciais restritas à equipe autorizada.</span></div>
     </aside>
   </section>;
 }
@@ -98,27 +90,29 @@ function PermissionsSettings() {
     { role: 'SUPERVISOR', access: 'Gestão operacional', details: 'Relatórios, qualidade, retornos, leads, auditoria e acompanhamento da equipe.' },
     { role: 'OPERADOR', access: 'Atendimento', details: 'Mesa do Operador, fila atribuída, retornos próprios, registros e histórico permitido.' },
   ];
-
-  return <section className="panel permissionsPanel">
-    <div className="panelHeader"><h3><ShieldCheck size={20} />Matriz de permissões</h3><span className="muted">Controle por perfil</span></div>
-    <div className="permissionCards">{permissions.map((item) => <article key={item.role}><span className={`rolePill role-${item.role.toLowerCase()}`}>{item.role}</span><b>{item.access}</b><p>{item.details}</p></article>)}</div>
-    <p className="muted">A criação do usuário e a escolha do perfil são feitas na seção Usuários. O backend continua responsável por validar as permissões em cada rota.</p>
-  </section>;
+  return <section className="panel permissionsPanel"><div className="panelHeader"><h3><ShieldCheck size={20} />Matriz de permissões</h3><span className="muted">Controle por perfil</span></div><div className="permissionCards">{permissions.map((item) => <article key={item.role}><span className={`rolePill role-${item.role.toLowerCase()}`}>{item.role}</span><b>{item.access}</b><p>{item.details}</p></article>)}</div><p className="muted">A criação do usuário e a escolha do perfil são feitas na seção Usuários. O backend continua responsável por validar as permissões em cada rota.</p></section>;
 }
 
-export default function ConfigurationsPage() {
-  const [section, setSection] = useState<ConfigSection>('VOIP');
-  const current = sectionOptions.find((item) => item.value === section) || sectionOptions[0];
+export default function ConfigurationsPage({ role }: { role: Role }) {
+  const allowedSections = useMemo(() => sectionOptions.filter((item) => item.roles.includes(role)), [role]);
+  const [section, setSection] = useState<ConfigSection>(allowedSections[0]?.value || 'USERS');
+
+  useEffect(() => {
+    if (!allowedSections.some((item) => item.value === section)) setSection(allowedSections[0]?.value || 'USERS');
+  }, [allowedSections, section]);
+
+  const current = allowedSections.find((item) => item.value === section) || allowedSections[0];
+  if (!current) return null;
   const CurrentIcon = current.icon;
 
   return <section className="configurationsPage polishPage">
     <div className="polishHero configHero">
-      <div><small>Administração do sistema</small><h2>Configurações centralizadas em um único lugar</h2><p>VoIP, usuários, softphone, perfis, permissões e auditoria organizados por categoria para reduzir itens soltos no menu.</p></div>
-      <label className="configSelector"><span>Configurações</span><div><CurrentIcon size={18} /><select value={section} onChange={(event) => setSection(event.target.value as ConfigSection)}>{sectionOptions.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}</select><ChevronDown size={17} /></div></label>
+      <div><small>Administração do sistema · {role}</small><h2>Configurações centralizadas em um único lugar</h2><p>As categorias disponíveis são filtradas de acordo com o perfil autenticado.</p></div>
+      <label className="configSelector"><span>Configurações</span><div><CurrentIcon size={18} /><select value={section} onChange={(event) => setSection(event.target.value as ConfigSection)}>{allowedSections.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}</select><ChevronDown size={17} /></div></label>
     </div>
 
-    <nav className="configTabs" aria-label="Categorias de configuração">{sectionOptions.map((item) => { const Icon = item.icon; return <button key={item.value} className={section === item.value ? 'active' : ''} onClick={() => setSection(item.value)}><Icon size={18} /><span><b>{item.label}</b><small>{item.description}</small></span></button>; })}</nav>
+    <nav className="configTabs" aria-label="Categorias de configuração">{allowedSections.map((item) => { const Icon = item.icon; return <button key={item.value} className={section === item.value ? 'active' : ''} onClick={() => setSection(item.value)}><Icon size={18} /><span><b>{item.label}</b><small>{item.description}</small></span></button>; })}</nav>
 
-    {section === 'VOIP' ? <VoipSettings /> : section === 'USERS' ? <UsersPro /> : section === 'SOFTPHONE' ? <SoftphoneSettings /> : section === 'PERMISSIONS' ? <PermissionsSettings /> : <AuditSettings />}
+    {section === 'VOIP' ? <VoipSettings /> : section === 'USERS' ? <UsersPro role={role} /> : section === 'SOFTPHONE' ? <SoftphoneSettings /> : section === 'PERMISSIONS' ? <PermissionsSettings /> : <AuditSettings />}
   </section>;
 }
